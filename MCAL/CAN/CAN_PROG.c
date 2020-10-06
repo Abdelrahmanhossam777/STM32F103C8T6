@@ -1,3 +1,21 @@
+/****************************************************/
+/*   AUTHOR      : Abdelrahman Hossam               */
+/*   Description : CAN DRIVER                       */
+/*   DATE        : 3 OCT 2020                       */
+/*   VERSION     : V02                              */
+/****************************************************/
+
+/**************************************************************************************/
+/* LOG:																				  */
+/*	VERSION 		AUTHOR			DATE				DESCRIPTION 				  */
+/* 	  01	 Abdelrahman Hossam  22 SEP, 2020		  Initial creation 				  */
+/*------------------------------------------------------------------------------------*/
+/*    02	 Abdullah Mustafa	 03 OCT, 2020		 - Adding the receive API		  */
+/*------------------------------------------------------------------------------------*/
+/**************************************************************************************/
+
+
+
 #include "../include/LIB/STD_TYPES.h"
 #include "../include/LIB/LIB.h"
 #include "../include/LIB/BIT_MATH.h"
@@ -10,6 +28,7 @@
 #include"../include/MCAL/RCC/RCC_PRIV.h"
 #include"../include/MCAL/NVIC/NVIC_PRIV.h"
 #include"../include/MCAL/NVIC/NVIC_INT.h"
+
 
 
 
@@ -271,7 +290,44 @@ void CAN_voidCreateMessage (u32 copy_u32ID, u32 copy_u32LowData, u32 copy_u32Hig
 	/********************************************************/
 }
 
-void CAN_voidReceive(u32 * Copy_u32Data)
-{
+	
 
+/********************************************************************************************/
+/*Function: CAN_voidReceive							                            			*/
+/*I/P Parameters: u8 * copy_u8Data, void (*Copy_PvoidCallbackFunction)(void)				*/
+/*Returns:it returns nothing	                            							    */
+/*Desc:This Function Recevie The Message And Store It In An Address Of A Variable			*/
+/********************************************************************************************/
+void CAN_voidReceive(u8 * Copy_u8Data, void (*Copy_PvoidCallbackFunction)(void))
+{
+	/* Decaler a local variable to store the filter match index */
+	u8 Local_u8FilterMatchIndex = 0;
+	/* Decaler a local variable to store the filter match index */
+	u8 Local_u8DLC = 0;
+	/* Check if the FIFO is empty or holding a message*/
+	if(GET_BIT(CAN -> RF0R,CAN_RF0R_FMP00) != 0)
+	{
+		/* Getting the low bytes From Low Data Register*/
+		* Copy_u8Data = (u8)(CAN->RxFIFOMailBox[0].RDLR);
+		/* Getting the Filter Match Index (FMI) */
+		Local_u8FilterMatchIndex = (u8)((CAN->CAN_FIFOMailBox[0].RDTR) >> 8);
+		/* Getting the DLC of the received data  */
+		Local_u8DLC = (u8)(CAN->CAN_FIFOMailBox[0].RDTR);
+		/* Check for the DLC, it is 0 in case of frame request */
+		if(Local_u8DLC !=0)
+		{
+			/* Exectue the callback function */
+			Copy_PvoidCallbackFunction();
+		}
+		else
+		{
+			/* Do something if the received frame is a request frame */
+		}
+	}
+	else
+	{
+		/*Do something if the FIFO is not empty and full of messages*/
+	}
+	/* Release FIFO Register for the next message */
+	SET_BIT(CAN->RF0R,CAN_RF0R_RFOM0); 
 }
