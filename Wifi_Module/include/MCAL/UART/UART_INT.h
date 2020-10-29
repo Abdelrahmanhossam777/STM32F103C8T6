@@ -41,4 +41,6 @@ void USART1_VidSendStringSynch ( u8 * Copy_ptrString );
 
 void USART1_VidSendCharSync ( u8 Copy_u8Char );
 
+u8 USART1_u8ReadDataRegister ( void );
+
 #endif

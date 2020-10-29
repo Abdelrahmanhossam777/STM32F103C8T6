@@ -8301,7 +8301,7 @@ typedef struct
 #pragma GCC diagnostic ignored "-Wpadded"
 #endif
 
-  #include "stm32f10x_conf.h"
+
 
 // [ILG]
 #if defined ( __GNUC__ )

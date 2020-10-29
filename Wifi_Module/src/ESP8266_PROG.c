@@ -34,7 +34,7 @@ u8 volatile DataCome[200] ;
 void USART_CallBack ( void ){
 
 	/* Receive ESP8266 Response */
-	DataCome[ Iterator ] = MUSART1_u8ReadDataRegister();
+	DataCome[ Iterator ] = USART1_u8ReadDataRegister();
 	/* ------------------ */
 	Iterator++;
 	USART1_VidClearFlags();
@@ -59,7 +59,7 @@ void ESP8266_VidInit ( void ){
 
 	ESP8266_VidClearBuffer();
 
-	MUSART1_VidSendStringSynch( (u8 *)"AT+CIPMODE=0\r\n" );
+	USART1_VidSendStringSynch( (u8 *)"AT+CIPMODE=0\r\n" );
 	SYSTICK_voidSetBusyWait( 3000000 );
 
 }

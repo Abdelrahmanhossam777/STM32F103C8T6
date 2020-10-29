@@ -101,3 +101,8 @@ void USART1_VidSendStringSynch ( u8 * Copy_ptrString ){
 
 }
 
+u8 USART1_u8ReadDataRegister ( void ){
+
+	return ( USART1 -> DR );
+
+}

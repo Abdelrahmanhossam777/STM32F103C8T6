@@ -70,7 +70,7 @@ void main(void)
 		LOC_u8Data = ESP8266_u8ReceiveHttpReq( (u8 *)"abdelrahman.freevar.com/status.txt" , (u8 *)"42" );
 
 		/* We Receive ASCII So We Will Subtract 48 From Data Come */
-		MGPIO_VidSetPinValue( GPIOA , PIN0 , LOC_u8Data - 48 );
+		GPIO_ErrorStatusSetPinValue(PIN0, GPIO_PORTA,LOC_u8Data - 48 );
 
 	}
 
