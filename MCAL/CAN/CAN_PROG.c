@@ -28,7 +28,9 @@
 #include"../include/MCAL/RCC/RCC_PRIV.h"
 #include"../include/MCAL/NVIC/NVIC_PRIV.h"
 #include"../include/MCAL/NVIC/NVIC_INT.h"
-
+#include"../include/MCAL/UART/UART_INT.h"
+#include"../include/MCAL/UART/UART_PRIV.h"
+#include"../include/MCAL/UART/UART_CONF.h"
 
 
 
@@ -74,13 +76,13 @@ void CAN_voidInit(void)
 	 * The Sleep mode is left on software request.
 	 * CAN reception/transmission frozen during debug. */
     CAN->MCR = (   ( CAN_MCR_NART << CAN_MCR_NART_Bit ) | ( CAN_MCR_ABOM << CAN_MCR_ABOM_Bit )
-    		    | ( CAN_MCR_ABOM << CAN_MCR_ABOM_Bit ) | ( CAN_MCR_RFLM << CAN_MCR_RFLM_Bit ) | ( CAN_MCR_TTCM << CAN_MCR_TTCM_Bit )
+    		    | ( CAN_MCR_RFLM << CAN_MCR_RFLM_Bit ) | ( CAN_MCR_TTCM << CAN_MCR_TTCM_Bit )
 				| ( CAN_MCR_TXFP << CAN_MCR_TXFP_BIt ) | ( CAN_MCR_AWUM << CAN_MCR_AWUM_Bit ) | ( CAN_MCR_DBFG << CAN_MCR_DBFG_Bit   ) );
 
     SET_BIT(CAN->MCR,CAN_MCR_INRQ_Bit);
     CLR_BIT(CAN->MCR,CAN_MCR_SLEEP_BIT);
     /* wait till the INAK is cleared and also the SLAK*/
-      while ((GET_BIT(CAN->MSR,CAN_MSR_INAK_Bit)==1) && (GET_BIT(CAN->MSR,CAN_MSR_SLAK_Bit) != 0));
+      while ((GET_BIT(CAN->MSR,CAN_MSR_INAK_Bit)) && (GET_BIT(CAN->MSR,CAN_MSR_SLAK_Bit)));
 
       CLR_BIT(CAN->MCR,CAN_MCR_INRQ_Bit);
      while ((GET_BIT(CAN->MSR,CAN_MSR_INAK_Bit)) || (GET_BIT(CAN->MSR,CAN_MSR_SLAK_Bit)));
@@ -146,17 +148,18 @@ void CAN_voidSendMessage (CAN_Msg *msg)
 
 		/* Transmit MailBox Request (Send Message) */
 		SET_BIT(CAN->TxMailBox[((msg->MailBoxNum)-MailBox_Shift)].TIR ,CAN_TIR_TXRQ_Bit);
-
-		if (GET_BIT(CAN->TSR,2)==1)
-			 GPIO_ErrorStatusSetPinValue(PIN1,GPIO_PORTA,High);
-		if (GET_BIT(CAN->TSR,1)==0)
-			 GPIO_ErrorStatusSetPinValue(PIN2,GPIO_PORTA,High);
-		if (GET_BIT(CAN->TSR,3)==0)
-			 GPIO_ErrorStatusSetPinValue(PIN3,GPIO_PORTA,High);
-		if (GET_BIT(CAN->TSR,0)==0)
-			 GPIO_ErrorStatusSetPinValue(PIN4,GPIO_PORTA,High);
+		while((GET_BIT(CAN->TSR,1) == 0) && (GET_BIT(CAN->TSR,0) == 0));
+		//if (GET_BIT(CAN->TSR,2)==1)
+		//	 GPIO_ErrorStatusSetPinValue(PIN1,GPIO_PORTA,High);
+		//if (GET_BIT(CAN->TSR,1)==0)
+		//	 GPIO_ErrorStatusSetPinValue(PIN2,GPIO_PORTA,High);
+		//if (GET_BIT(CAN->TSR,3)==0)
+		//	 GPIO_ErrorStatusSetPinValue(PIN3,GPIO_PORTA,High);
+		//if (GET_BIT(CAN->TSR,0)==0)
+		//	 GPIO_ErrorStatusSetPinValue(PIN4,GPIO_PORTA,High);
 		//while (GET_BIT(CAN->TxMailBox[((msg->MailBoxNum)-MailBox_Shift)].TIR ,CAN_TIR_TXRQ_Bit)==1);
-		GPIO_ErrorStatusSetPinValue(PIN0,GPIO_PORTA,High);
+		//while(GET_BIT(CAN->TSR, 0 ) != 1);
+		//GPIO_ErrorStatusSetPinValue(PIN0,GPIO_PORTA,High);
 	}
 	else
 	{
@@ -298,36 +301,75 @@ void CAN_voidCreateMessage (u32 copy_u32ID, u32 copy_u32LowData, u32 copy_u32Hig
 /*Returns:it returns nothing	                            							    */
 /*Desc:This Function Recevie The Message And Store It In An Address Of A Variable			*/
 /********************************************************************************************/
-void CAN_voidReceive(u8 * Copy_u8Data, void (*Copy_PvoidCallbackFunction)(void))
+/*u8 value=0;
+void CAN_voidReceive(void)
 {
+	volatile u8  Copy_u8Data=0;
 	/* Decaler a local variable to store the filter match index */
-	u8 Local_u8FilterMatchIndex = 0;
+	//volatile u8 Local_u8FilterMatchIndex = 0;
 	/* Decaler a local variable to store the filter match index */
-	u8 Local_u8DLC = 0;
+//	volatile u8 Local_u8DLC = 0;
 	/* Check if the FIFO is empty or holding a message*/
-	if(GET_BIT(CAN -> RF0R,CAN_RF0R_FMP00) != 0)
+	/*if((GET_BIT(CAN -> RF0R,CAN_RF0R_FMP00) != 0) || ( GET_BIT(CAN -> RF0R,CAN_RF0R_FMP01) != 0 ))
 	{
 		/* Getting the low bytes From Low Data Register*/
-		* Copy_u8Data = (u8)(CAN->RxFIFOMailBox[0].RDLR);
-		/* Getting the Filter Match Index (FMI) */
-		Local_u8FilterMatchIndex = (u8)((CAN->CAN_FIFOMailBox[0].RDTR) >> 8);
+		// Copy_u8Data = (u8)(CAN->RxFIFOMailBox[0].RDLR);
+	//	 value=Copy_u8Data;
+		 /* Getting the Filter Match Index (FMI) */
+		/*Local_u8FilterMatchIndex = (u8)((CAN->RxFIFOMailBox[0].RDTR) >> 8);
 		/* Getting the DLC of the received data  */
-		Local_u8DLC = (u8)(CAN->CAN_FIFOMailBox[0].RDTR);
+		/*Local_u8DLC = (u8)(CAN->RxFIFOMailBox[0].RDTR);
 		/* Check for the DLC, it is 0 in case of frame request */
-		if(Local_u8DLC !=0)
+	/*	if(Local_u8DLC !=0)
 		{
 			/* Exectue the callback function */
-			Copy_PvoidCallbackFunction();
+		/*	  if (Copy_u8Data==255)
+			  GPIO_ErrorStatusSetPinValue(PIN0,GPIO_PORTA,High);
 		}
 		else
 		{
 			/* Do something if the received frame is a request frame */
-		}
+		/*}
 	}
 	else
 	{
 		/*Do something if the FIFO is not empty and full of messages*/
-	}
+	/*}
+
+	LCD_void4bitDisplayNumber(Copy_u8Data);
 	/* Release FIFO Register for the next message */
-	SET_BIT(CAN->RF0R,CAN_RF0R_RFOM0); 
+	/*SET_BIT(CAN->RF0R,CAN_RF0R_RFOM0);
+}
+*/
+
+void MCAN_voidReceiveData(volatile u32 * Copy_pu32Data)
+{
+	/* To enter the normal mode*/
+	/*CLR_BIT(CAN->MCR,0);		// Clear initialization bit
+	CLR_BIT(CAN->MCR,1);		// Clear sleep bit*/
+	u16 ID=0;
+	SET_BIT(CAN->FM1R,0);		// FMB0 is set to be List Mode
+	SET_BIT(CAN->FS1R,0);		// FSC0 is set to be 32-bit
+	CAN->FFA1R=0;
+	SET_BIT(CAN->Filter[0].FR1,0);		// Set ID mode because we expected the id of msg = 1
+	SET_BIT(CAN->FA1R,0);		// Active filter 0
+	CLR_BIT(CAN->FMR,0);
+	/*Check if the node still in initialization mode or Sleep mode or left it*/
+	while((GET_BIT(CAN->MSR,0)) && (GET_BIT(CAN->MSR,1)));
+	if(GET_BIT(CAN->RF0R,0) !=0)
+	{
+		* Copy_pu32Data =(u16) ((CAN->RxFIFOMailBox[0].RIR)>>21);
+						/* ((GET_BIT(CAN->RxFIFOMailBox[0].RDLR,0)<<0) |
+						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,1)<<1) |
+						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,2)<<2) |
+						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,3)<<3) |
+						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,4)<<4) |
+						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,5)<<5) |
+						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,6)<<6) |
+						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,7)<<7) );*/
+		SET_BIT(CAN->RF0R,5);			// RFOM0 is set to release the mailbox
+//		ID =
+	}
+
+//	ID = (u16) ((CAN->RxFIFOMailBox[0].RIR)>>21);
 }
