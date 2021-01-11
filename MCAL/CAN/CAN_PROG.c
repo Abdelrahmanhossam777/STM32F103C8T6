@@ -1,19 +1,18 @@
-/****************************************************/
-/*   AUTHOR      : Abdelrahman Hossam               */
-/*   Description : CAN DRIVER                       */
-/*   DATE        : 3 OCT 2020                       */
-/*   VERSION     : V02                              */
-/****************************************************/
-
-/**************************************************************************************/
-/* LOG:																				  */
-/*	VERSION 		AUTHOR			DATE				DESCRIPTION 				  */
-/* 	  01	 Abdelrahman Hossam  22 SEP, 2020		  Initial creation 				  */
-/*------------------------------------------------------------------------------------*/
-/*    02	 Abdullah Mustafa	 03 OCT, 2020		 - Adding the receive API		  */
-/*------------------------------------------------------------------------------------*/
-/**************************************************************************************/
-
+/****************************************************************************************
+* ! Title : CAN_program
+* ! File Name : CAN_program.c
+* ! Description : This file has the definition of the CAN functions and
+* the usage of the global variables.
+* ! Compiler : GNU ARM Cross Compiler
+* ! Target : STM32F103xxxx Micro-controller
+****************************************************************************************/
+/****************************************************************************************
+* LOG :
+* VERSION    AUTHOR              DATE              DESCRIPTION
+* v1.0       Abdelrahman Hossam  22 SEP,2020       - Initial creation
+* v2.0       Abdullah Mustafa    03 OCT,2020       - Adding the receive API
+* v3.0       Abdelrahman Hossam  11 JAN,2021	   - Add Filters Configurations
+****************************************************************************************/
 
 
 #include "../include/LIB/STD_TYPES.h"
@@ -21,77 +20,33 @@
 #include "../include/LIB/BIT_MATH.h"
 #include "../include/MCAL/GPIO/GPIO_INT.h"
 #include "../include/MCAL/GPIO/GPIO_PRIV.h"
-#include"../include/MCAL/CAN/CAN_INIT.h"
-#include"../include/MCAL/CAN/CAN_CONF.h"
-#include"../include/MCAL/CAN/CAN_PRIV.h"
-#include"../include/MCAL/RCC/RCC_INT.h"
-#include"../include/MCAL/RCC/RCC_PRIV.h"
-#include"../include/MCAL/NVIC/NVIC_PRIV.h"
-#include"../include/MCAL/NVIC/NVIC_INT.h"
-#include"../include/MCAL/UART/UART_INT.h"
-#include"../include/MCAL/UART/UART_PRIV.h"
-#include"../include/MCAL/UART/UART_CONF.h"
+#include "../include/MCAL/CAN/CAN_INIT.h"
+#include "../include/MCAL/CAN/CAN_CONF.h"
+#include "../include/MCAL/CAN/CAN_PRIV.h"
+#include "../include/MCAL/RCC/RCC_INT.h"
+#include "../include/MCAL/RCC/RCC_PRIV.h"
+#include "../include/MCAL/NVIC/NVIC_PRIV.h"
+#include "../include/MCAL/NVIC/NVIC_INT.h"
+#include "../include/MCAL/UART/UART_INT.h"
+#include "../include/MCAL/UART/UART_PRIV.h"
+#include "../include/MCAL/UART/UART_CONF.h"
 
 
 
-CAN_Msg       CAN_TxMsg[Number_of_TxMessages];      // CAN message for sending
-CAN_Msg       CAN_RxMsg[Number_of_RxMessages];      // CAN message for receiving
- u8  		  CAN_TxRdy[3]; 					     // CAN HW ready to transmit a message
- u8		      CAN_RxRd[2];    						 // CAN HW received a message
-
- /********************************************************************************************/
- /*Function: CAN_voidInit							                            			 */
- /*I/P Parameters: void																		 */
- /*Returns:it returns nothing	                            							     */
- /*Desc:This Function initialize the CAN		     					                     */
- /********************************************************************************************/
-void CAN_voidInit(void)
+/*********************************************************************************************/
+/*Function: CAN_voidInitialization  				                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function allows CAN to work with all the needed setups		                     */
+/*********************************************************************************************/
+void CAN_voidInit()
 {
-	/* Enable the clock for the CAN Peripheral */
-	RCC_vidSetPeripheralclock(APB1,CAN1EN,ON);
-
-	/*********************************************/
-	/* need to make AFIO for the pins p8,9       */
-	/*********************************************/
-
-	GPIO_ErrorStatusSetPinMode(PIN12,GPIO_PORTA,Output2_AFPushPull);
-	GPIO_ErrorStatusSetPinMode(PIN11,GPIO_PORTA,Input_Floating);
-
-	/* Enable the NVIC for the TX and RX */
-//	NVIC_ErrorStatusEnable(USB_HP_CAN_TX);
-//	NVIC_ErrorStatusEnable(USB_LP_CAN_RX0);
-
-
-
-	 /* BaudRate = 1 Mbps */
-	 CAN->BTR= CAN_BaudRate;
-
-	 /* The Re-transmition on
-	 * Enter the initialization mode
-	 * Set automatic bus-off management
-	 * Set transmit FIFO priority driven by the request order
-	 * Receive FIFO not locked on overrun
-	 * Out of Sleep mode request
-	 * Time triggered communication mode off
-	 * The Sleep mode is left on software request.
-	 * CAN reception/transmission frozen during debug. */
-    CAN->MCR = (   ( CAN_MCR_NART << CAN_MCR_NART_Bit ) | ( CAN_MCR_ABOM << CAN_MCR_ABOM_Bit )
-    		    | ( CAN_MCR_RFLM << CAN_MCR_RFLM_Bit ) | ( CAN_MCR_TTCM << CAN_MCR_TTCM_Bit )
-				| ( CAN_MCR_TXFP << CAN_MCR_TXFP_BIt ) | ( CAN_MCR_AWUM << CAN_MCR_AWUM_Bit ) | ( CAN_MCR_DBFG << CAN_MCR_DBFG_Bit   ) );
-
-    SET_BIT(CAN->MCR,CAN_MCR_INRQ_Bit);
-    CLR_BIT(CAN->MCR,CAN_MCR_SLEEP_BIT);
-    /* wait till the INAK is cleared and also the SLAK*/
-      while ((GET_BIT(CAN->MSR,CAN_MSR_INAK_Bit)) && (GET_BIT(CAN->MSR,CAN_MSR_SLAK_Bit)));
-
-      CLR_BIT(CAN->MCR,CAN_MCR_INRQ_Bit);
-     while ((GET_BIT(CAN->MSR,CAN_MSR_INAK_Bit)) || (GET_BIT(CAN->MSR,CAN_MSR_SLAK_Bit)));
-    /* Enable the Empty mailbox interrupt & FIFO message pending interrupt enable */
-   // CAN->IER= ( ( CAN_IER_TMEIE << CAN_IER_TMEIE_Bit ) | ( CAN_IER_FMPIE0 << CAN_IER_FMPIE0_Bit ) ) ;
-
+	CAN_voidSetup();               // Setup the CAN Registers with Configurations
+	CAN_voidInitializationMode();  // Leave the Sleep mode and Enter The Initialization Mode
+	CAN_voidMode();			       // Initialize the Mode to enter Test-Mode or not
+	CAN_voidFiltersInit();         // Initialize The Filters
+	CAN_voidStart();		       // Leave the Initialization Mode and Enter The Normal Mode
 }
-
-
 /********************************************************************************************/
 /*Function: CAN_voidSendMessage						                            			*/
 /*I/P Parameters: CAN_Msg *msg																*/
@@ -102,7 +57,7 @@ void CAN_voidSendMessage (CAN_Msg *msg)
 {
 	if ( CAN_u8CheckReady(msg->MailBoxNum) )
 	{
-
+		CAN->TxMailBox[((msg->MailBoxNum)-MailBox_Shift)].TIR = 0;
 		/* Reset the value of DLC bits */
 		( CAN->TxMailBox[(msg->MailBoxNum-MailBox_Shift)].TDTR ) &= ~ (CAN_TIDR_DLC_ResetMask) ;
 
@@ -120,7 +75,7 @@ void CAN_voidSendMessage (CAN_Msg *msg)
 			   */
 			  CAN->TxMailBox[(msg->MailBoxNum-MailBox_Shift)].TIR =
 				  (  (msg->ID << CAN_TIR_Standard_StartBit) | (CAN_MSG_Standard_Format << CAN_TIR_IDE_Bit)
-				   | (msg->Type << CAN_TIR_RTR_Bit));
+				   | (msg->Type << CAN_TIR_RTR_Bit		  ));
 		}
 		/* Extended Format Execution program */
 		else
@@ -148,18 +103,7 @@ void CAN_voidSendMessage (CAN_Msg *msg)
 
 		/* Transmit MailBox Request (Send Message) */
 		SET_BIT(CAN->TxMailBox[((msg->MailBoxNum)-MailBox_Shift)].TIR ,CAN_TIR_TXRQ_Bit);
-		while((GET_BIT(CAN->TSR,1) == 0) && (GET_BIT(CAN->TSR,0) == 0));
-		//if (GET_BIT(CAN->TSR,2)==1)
-		//	 GPIO_ErrorStatusSetPinValue(PIN1,GPIO_PORTA,High);
-		//if (GET_BIT(CAN->TSR,1)==0)
-		//	 GPIO_ErrorStatusSetPinValue(PIN2,GPIO_PORTA,High);
-		//if (GET_BIT(CAN->TSR,3)==0)
-		//	 GPIO_ErrorStatusSetPinValue(PIN3,GPIO_PORTA,High);
-		//if (GET_BIT(CAN->TSR,0)==0)
-		//	 GPIO_ErrorStatusSetPinValue(PIN4,GPIO_PORTA,High);
-		//while (GET_BIT(CAN->TxMailBox[((msg->MailBoxNum)-MailBox_Shift)].TIR ,CAN_TIR_TXRQ_Bit)==1);
-		//while(GET_BIT(CAN->TSR, 0 ) != 1);
-		//GPIO_ErrorStatusSetPinValue(PIN0,GPIO_PORTA,High);
+
 	}
 	else
 	{
@@ -174,42 +118,69 @@ void CAN_voidSendMessage (CAN_Msg *msg)
 /*Returns:it returns nothing	                            							    */
 /*Desc:This Function Receives a message throw the CAN 				                        */
 /********************************************************************************************/
-void CAN_voidReadMessage(CAN_Msg *msg)
+void CAN_voidReadMessage(CAN_Msg *msg, u8 Copy_u8FIFONumber)
 {
-	if (GET_BIT(CAN->RxFIFOMailBox[0].RIR,CAN_RIR_IDE_Bit)==0)
+	/* Input Validation */
+	if (Copy_u8FIFONumber > 1)
+	{
+		return;
+	}
+
+	if (GET_BIT(CAN->RxFIFOMailBox[Copy_u8FIFONumber].RIR,CAN_RIR_IDE_Bit)==0)
 	{
 		/* Standard Format Assign to the message */
 		msg->Format= CAN_MSG_Standard_Format;
 		/* Assign ID to the Message ID */
-		msg->ID=CAN_Standard_formatMask & (CAN->RxFIFOMailBox[0].RIR >> CAN_FIFO_SID_Shift);
+		msg->ID=CAN_Standard_formatMask & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RIR >> CAN_FIFO_SID_Shift);
 	}
 	else
 	{
 		/* Extended Format Assign to the message */
 		msg->Format= CAN_MSG_Extended_Format;
 		/* Assign ID to the Message ID */
-		msg->ID=CAN_Extended_formatMask & (CAN->RxFIFOMailBox[0].RIR >> CAN_FIFO_EID_Shift);
+		msg->ID=CAN_Extended_formatMask & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RIR >> CAN_FIFO_EID_Shift);
 	}
 
 	/* Assign the message type if DATA or REQUEST */
-	msg->Type=GET_BIT(CAN->RxFIFOMailBox[0].RIR,CAN_RIR_RTR_Bit);
+	msg->Type=GET_BIT(CAN->RxFIFOMailBox[Copy_u8FIFONumber].RIR,CAN_RIR_RTR_Bit);
 	/* Assign the Data Size */
-	msg->Len=CAN_DLC_MASK & (CAN->RxFIFOMailBox[0].RDTR);
+	msg->Len=CAN_DLC_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDTR);
 
 	/* Assigning the Low Register Data in the Data Array */
-	msg->Data[0]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDLR >>CAN_DATA_BYTE0_Shift);
-	msg->Data[1]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDLR >>CAN_DATA_BYTE1_Shift);
-	msg->Data[2]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDLR >>CAN_DATA_BYTE2_Shift);
-	msg->Data[3]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDLR >>CAN_DATA_BYTE3_Shift);
+	msg->Data[0]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDLR >>CAN_DATA_BYTE0_Shift);
+	msg->Data[1]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDLR >>CAN_DATA_BYTE1_Shift);
+	msg->Data[2]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDLR >>CAN_DATA_BYTE2_Shift);
+	msg->Data[3]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDLR >>CAN_DATA_BYTE3_Shift);
 	/* Assigning the High Register Data in the Data Array */
-	msg->Data[4]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDHR >>CAN_DATA_BYTE0_Shift);
-	msg->Data[5]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDHR >>CAN_DATA_BYTE1_Shift);
-	msg->Data[6]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDHR >>CAN_DATA_BYTE2_Shift);
-	msg->Data[7]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[0].RDHR >>CAN_DATA_BYTE3_Shift);
+	msg->Data[4]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDHR >>CAN_DATA_BYTE0_Shift);
+	msg->Data[5]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDHR >>CAN_DATA_BYTE1_Shift);
+	msg->Data[6]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDHR >>CAN_DATA_BYTE2_Shift);
+	msg->Data[7]= CAN_DATA_MASK & (CAN->RxFIFOMailBox[Copy_u8FIFONumber].RDHR >>CAN_DATA_BYTE3_Shift);
 
 	/* Release the FIFO Mailbox */
-	SET_BIT(CAN->RF0R,CAN_RF0R_RFOM0);
+	if (Copy_u8FIFONumber==0)
+	{
+		SET_BIT(CAN->RF0R,CAN_RF0R_RFOM0); //Release FIFO 0
+	}
+	else if (Copy_u8FIFONumber==1)
+	{
+		SET_BIT(CAN->RF1R,CAN_RF1R_RFOM1); //Release FIFO 1
+	}
 }
+
+/********************************************************************************************/
+/*Function: CAN_voidPendingMSG						                            		    */
+/*I/P Parameters: void																	    */
+/*Returns:it returns nothing	                            							    */
+/*Desc:This Function reads number of pending MSG    					                    */
+/********************************************************************************************/
+void CAN_voidPendingMSG(void)
+{
+
+	CAN_RxRd[0]=(CAN->RF0R & 0x0003); // Number of pending MSGs in FIFO 0
+	CAN_RxRd[1]=(CAN->RF1R & 0x0003); // Number of pending MSGs in FIFO 1
+}
+
 
 /********************************************************************************************/
 /*Function: CAN_u8CheckReady						                            			*/
@@ -221,26 +192,20 @@ void CAN_voidReadMessage(CAN_Msg *msg)
 /********************************************************************************************/
 u8 CAN_u8CheckReady(u8 copy_u8MailBoxNum)
 {
-	/* Set the Ready Transmission to Ready */
-	CAN_TxRdy[(copy_u8MailBoxNum-MailBox_Shift)]= CAN_Rdy;
-	/* Local Counter for Time Run out Error */
-	u16 local_u16Counter=0;
-	/* Pull on the Flag  */
-	while(GET_BIT(CAN->TSR,copy_u8MailBoxNum)==0)
+
+	CAN_TxRdy[(copy_u8MailBoxNum-MailBox_Shift)]= CAN_Rdy; // Set the Ready Transmission to Ready
+	u16 local_u16Counter=0; 							   // Local Counter for Time Run out Error
+    while(GET_BIT(CAN->TSR,copy_u8MailBoxNum)==0)          // Pull on the Flag
 	{
-		/* Update the Local Counter */
-		local_u16Counter++;
-		/* Check on the value of the Local Counter */
-		if (local_u16Counter == 5000)
+		local_u16Counter++;                                // Update the Local Counter
+		if (local_u16Counter == TimeOut)	 			   // Check on the value of the Local Counter
 		{
 			/* If Time Ran out the Ready Transmission will be not Ready */
 			CAN_TxRdy[(copy_u8MailBoxNum-MailBox_Shift)]= CAN_NotRdy;
-			/* break the loop because of infinity loop */
-			break;
+			break;                                         // break the loops because of infinity loop
 		}
 	}
-	/* Return the Call to the caller Function */
-	return CAN_TxRdy[(copy_u8MailBoxNum-MailBox_Shift)];
+	return CAN_TxRdy[(copy_u8MailBoxNum-MailBox_Shift)];   // Return the Call to the caller Function
 }
 
 
@@ -293,83 +258,385 @@ void CAN_voidCreateMessage (u32 copy_u32ID, u32 copy_u32LowData, u32 copy_u32Hig
 	/********************************************************/
 }
 
-	
-
 /********************************************************************************************/
-/*Function: CAN_voidReceive							                            			*/
-/*I/P Parameters: u8 * copy_u8Data, void (*Copy_PvoidCallbackFunction)(void)				*/
+/*Function: CAN_voidSetup							                            		    */
+/*I/P Parameters: void																	    */
 /*Returns:it returns nothing	                            							    */
-/*Desc:This Function Recevie The Message And Store It In An Address Of A Variable			*/
+/*Desc:This Function setup the CAN Registers	     					                    */
 /********************************************************************************************/
-/*u8 value=0;
-void CAN_voidReceive(void)
+static void CAN_voidSetup(void)
 {
-	volatile u8  Copy_u8Data=0;
-	/* Decaler a local variable to store the filter match index */
-	//volatile u8 Local_u8FilterMatchIndex = 0;
-	/* Decaler a local variable to store the filter match index */
-//	volatile u8 Local_u8DLC = 0;
-	/* Check if the FIFO is empty or holding a message*/
-	/*if((GET_BIT(CAN -> RF0R,CAN_RF0R_FMP00) != 0) || ( GET_BIT(CAN -> RF0R,CAN_RF0R_FMP01) != 0 ))
-	{
-		/* Getting the low bytes From Low Data Register*/
-		// Copy_u8Data = (u8)(CAN->RxFIFOMailBox[0].RDLR);
-	//	 value=Copy_u8Data;
-		 /* Getting the Filter Match Index (FMI) */
-		/*Local_u8FilterMatchIndex = (u8)((CAN->RxFIFOMailBox[0].RDTR) >> 8);
-		/* Getting the DLC of the received data  */
-		/*Local_u8DLC = (u8)(CAN->RxFIFOMailBox[0].RDTR);
-		/* Check for the DLC, it is 0 in case of frame request */
-	/*	if(Local_u8DLC !=0)
+
+	RCC_vidSetPeripheralclock(APB1,CAN1EN,ON); // Enable the clock for the CAN Peripheral
+	/*********************************************/
+	/* need to make AFIO for the pins p8,9       */
+	/*********************************************/
+	GPIO_ErrorStatusSetPinMode(Can_Tx,Output2_AFPushPull);  //Set TX pin to Alternative Function Pushpull
+	GPIO_ErrorStatusSetPinMode(Can_Rx,Input_Floating);      //Set RX pin to Input Floating
+
+	/* Interrupt Enable For the Can */
+	#if (Interrupt_Enable==Enable)
+		/* Enable the NVIC for the TX and RX */
+		NVIC_ErrorStatusEnable(USB_HP_CAN_TX);
+		NVIC_ErrorStatusEnable(USB_LP_CAN_RX0);
+	#endif
+
+	 /* The Re-transmition on
+	 * Enter the initialization mode
+	 * Set automatic bus-off management
+	 * Set transmit FIFO priority driven by the request order
+	 * Receive FIFO not locked on overrun
+	 * Out of Sleep mode request
+	 * Time triggered communication mode off
+	 * The Sleep mode is left on software request.
+	 * CAN reception/transmission frozen during debug. */
+   CAN->MCR = (  ( CAN_MCR_NART << CAN_MCR_NART_Bit )  | ( CAN_MCR_ABOM << CAN_MCR_ABOM_Bit )
+   		    | ( CAN_MCR_RFLM << CAN_MCR_RFLM_Bit )  | ( CAN_MCR_TTCM << CAN_MCR_TTCM_Bit )
+				| ( CAN_MCR_TXFP << CAN_MCR_TXFP_BIt )  | ( CAN_MCR_AWUM << CAN_MCR_AWUM_Bit ) | ( CAN_MCR_DBFG << CAN_MCR_DBFG_Bit   ) );
+
+
+   /* Enable the Empty mailbox interrupt & FIFO message pending interrupt enable */
+  // CAN->IER= ( ( CAN_IER_TMEIE << CAN_IER_TMEIE_Bit ) | ( CAN_IER_FMPIE0 << CAN_IER_FMPIE0_Bit ) ) ;
+
+}
+
+/*********************************************************************************************/
+/*Function: CAN_voidMode							                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function setup the CAN Mode Test Mode or Not     			                     */
+/*********************************************************************************************/
+static void CAN_voidMode(void)
+{
+	/* Test Mode Configuration */
+	#if(Test_Mode==Disable)                     // Test mode Is Disabled
 		{
-			/* Exectue the callback function */
-		/*	  if (Copy_u8Data==255)
-			  GPIO_ErrorStatusSetPinValue(PIN0,GPIO_PORTA,High);
+			CAN->BTR= CAN_BaudRate; 			// BaudRate = 1 Mbps
+			CLR_BIT(CAN->BTR,CAN_BTR_LBKM_BIT); // Loop Back Mode Disable
+			CLR_BIT(CAN->BTR,CAN_BTR_SILM_BIT); // Silent Mode Disable
 		}
-		else
+  #elif (Test_Mode==Enable)					// Test mode Is Enabled
 		{
-			/* Do something if the received frame is a request frame */
-		/*}
-	}
-	else
-	{
-		/*Do something if the FIFO is not empty and full of messages*/
-	/*}
+			CAN->BTR= CAN_BaudRate; 			// BaudRate = 1 Mbps
+			SET_BIT(CAN->BTR,CAN_BTR_LBKM_BIT); // Loop Back Mode Enable
+			SET_BIT(CAN->BTR,CAN_BTR_SILM_BIT); // Silent Mode Enable
+		}
+   #endif
 
-	LCD_void4bitDisplayNumber(Copy_u8Data);
-	/* Release FIFO Register for the next message */
-	/*SET_BIT(CAN->RF0R,CAN_RF0R_RFOM0);
 }
-*/
 
-void MCAN_voidReceiveData(volatile u32 * Copy_pu32Data)
+/*********************************************************************************************/
+/*Function: CAN_voidInitializationMode				                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function allows CAN to Enter Initialization Mode   			                     */
+/*********************************************************************************************/
+static void CAN_voidInitializationMode(void)
 {
-	/* To enter the normal mode*/
-	/*CLR_BIT(CAN->MCR,0);		// Clear initialization bit
-	CLR_BIT(CAN->MCR,1);		// Clear sleep bit*/
-	u16 ID=0;
-	SET_BIT(CAN->FM1R,0);		// FMB0 is set to be List Mode
-	SET_BIT(CAN->FS1R,0);		// FSC0 is set to be 32-bit
-	CAN->FFA1R=0;
-	SET_BIT(CAN->Filter[0].FR1,0);		// Set ID mode because we expected the id of msg = 1
-	SET_BIT(CAN->FA1R,0);		// Active filter 0
-	CLR_BIT(CAN->FMR,0);
-	/*Check if the node still in initialization mode or Sleep mode or left it*/
-	while((GET_BIT(CAN->MSR,0)) && (GET_BIT(CAN->MSR,1)));
-	if(GET_BIT(CAN->RF0R,0) !=0)
-	{
-		* Copy_pu32Data =(u16) ((CAN->RxFIFOMailBox[0].RIR)>>21);
-						/* ((GET_BIT(CAN->RxFIFOMailBox[0].RDLR,0)<<0) |
-						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,1)<<1) |
-						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,2)<<2) |
-						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,3)<<3) |
-						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,4)<<4) |
-						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,5)<<5) |
-						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,6)<<6) |
-						  (GET_BIT(CAN->RxFIFOMailBox[0].RDLR,7)<<7) );*/
-		SET_BIT(CAN->RF0R,5);			// RFOM0 is set to release the mailbox
-//		ID =
-	}
+	   /* Initialization Mode Entry */
+	    SET_BIT(CAN->MCR,CAN_MCR_INRQ_Bit);  // Initialization Mode Request
+	    CLR_BIT(CAN->MCR,CAN_MCR_SLEEP_BIT); // Leave Sleep Mode Request
 
-//	ID = (u16) ((CAN->RxFIFOMailBox[0].RIR)>>21);
+	    // wait till the INAK is cleared and also the SLAK
+	    while ((GET_BIT(CAN->MSR,CAN_MSR_INAK_Bit)) && (GET_BIT(CAN->MSR,CAN_MSR_SLAK_Bit)));
 }
+
+/*********************************************************************************************/
+/*Function: CAN_voidInitializationMode				                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function allows CAN to Enter Normal Mode		   			                     */
+/*********************************************************************************************/
+static void CAN_voidStart(void)
+{
+   /* Normal Mode Entry */
+   CLR_BIT(CAN->MCR,CAN_MCR_INRQ_Bit); // Leave Initialization Mode Request
+   while ((GET_BIT(CAN->MSR,CAN_MSR_INAK_Bit)) && (GET_BIT(CAN->MSR,CAN_MSR_SLAK_Bit))); //wait ACK for Normal Mode
+
+}
+
+/********************************************************************************/
+/*Function: CAN_voidFiltersInit						                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns nothing                       							    */
+/*Desc:This Function Initialize all the CAN Filters         		            */
+/********************************************************************************/
+static void CAN_voidFiltersInit(void)
+{
+	SET_BIT(CAN->FMR,CAN_FMR_FINIT_BIT);	// SET bit FINIT to initialize the filter
+	CAN->FA1R=Reset_Value;					// inactive All filters
+	CAN->FM1R=CAN_u32FiltersMode();         // Set the Filters Mode
+	CAN->FS1R=CAN_u32FiltersConf();         // Set the Filters 32 or 2*16 registers
+	CAN->FFA1R=CAN_u32FiltersAssign();      // Set the assign of each filter to One of the FIFOs (1 or 2)
+	CAN_voidSetIDs();                       // Set the IDs to the Filters
+	CAN->FA1R=CAN_u32FiltersEnable();       // Enable The Filters
+	CLR_BIT(CAN->FMR,CAN_FMR_FINIT_BIT);	// CLEAR bit FINIT to Activate the filter
+}
+
+/********************************************************************************/
+/*Function: CAN_u32FiltersEnable					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to the Enabled Filters  		            */
+/********************************************************************************/
+static u32 CAN_u32FiltersEnable(void)
+{
+	u32 Local_u32Value=0;   //Local Variable For Data Read
+	/*Assemble Filters Values*/
+	Local_u32Value =((Filter27_Enable<<Filter27)| (Filter26_Enable<<Filter26)| (Filter25_Enable<<Filter25)|
+					 (Filter24_Enable<<Filter24)| (Filter23_Enable<<Filter23)| (Filter23_Enable<<Filter23)|
+					 (Filter22_Enable<<Filter22)| (Filter21_Enable<<Filter21)| (Filter20_Enable<<Filter20)|
+					 (Filter19_Enable<<Filter19)| (Filter18_Enable<<Filter18)| (Filter17_Enable<<Filter17)|
+					 (Filter16_Enable<<Filter16)| (Filter15_Enable<<Filter15)| (Filter14_Enable<<Filter14)|
+					 (Filter13_Enable<<Filter13)| (Filter12_Enable<<Filter12)| (Filter11_Enable<<Filter11)|
+					 (Filter10_Enable<<Filter10)| (Filter9_Enable<<Filter9  )| (Filter8_Enable<<Filter8  )|
+					 (Filter7_Enable<<Filter7  )| (Filter6_Enable<<Filter6  )| (Filter5_Enable<<Filter5  )|
+					 (Filter4_Enable<<Filter4  )| (Filter3_Enable<<Filter3  )| (Filter2_Enable<<Filter2  )|
+					 (Filter1_Enable<<Filter1  )| (Filter0_Enable<<Filter0  ));
+	return Local_u32Value;  // Returning the control to the caller function
+}
+/********************************************************************************/
+/*Function: CAN_u32FiltersMode     					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to Filters modes list or mask            */
+/********************************************************************************/
+static u32 CAN_u32FiltersMode(void)
+{
+	u32 Local_u32Value=0;  //Local Variable For Data Read
+	/*Assemble Filters Values*/
+	Local_u32Value =((Filter27_Mode<<Filter27)| (Filter26_Mode<<Filter26)| (Filter25_Mode<<Filter25)|
+					 (Filter24_Mode<<Filter24)| (Filter23_Mode<<Filter23)| (Filter23_Mode<<Filter23)|
+					 (Filter22_Mode<<Filter22)| (Filter21_Mode<<Filter21)| (Filter20_Mode<<Filter20)|
+					 (Filter19_Mode<<Filter19)| (Filter18_Mode<<Filter18)| (Filter17_Mode<<Filter17)|
+					 (Filter16_Mode<<Filter16)| (Filter15_Mode<<Filter15)| (Filter14_Mode<<Filter14)|
+					 (Filter13_Mode<<Filter13)| (Filter12_Mode<<Filter12)| (Filter11_Mode<<Filter11)|
+					 (Filter10_Mode<<Filter10)| (Filter9_Mode<<Filter9  )| (Filter8_Mode<<Filter8  )|
+					 (Filter7_Mode<<Filter7  )| (Filter6_Mode<<Filter6  )| (Filter5_Mode<<Filter5  )|
+					 (Filter4_Mode<<Filter4  )| (Filter3_Mode<<Filter3  )| (Filter2_Mode<<Filter2  )|
+					 (Filter1_Mode<<Filter1  )| (Filter0_Mode<<Filter0  ));
+	return Local_u32Value;  // Returning the control to the caller function
+}
+/********************************************************************************/
+/*Function: CAN_u32FiltersConf     					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to Filters Conf Single or Dual Registers */
+/********************************************************************************/
+static u32 CAN_u32FiltersConf(void)
+{
+	u32 Local_u32Value=0;   //Local Variable For Data Read
+	/*Assemble Filters Values*/
+	Local_u32Value =((Filter27_Conf<<Filter27)| (Filter26_Conf<<Filter26)| (Filter25_Conf<<Filter25)|
+					 (Filter24_Conf<<Filter24)| (Filter23_Conf<<Filter23)| (Filter23_Conf<<Filter23)|
+					 (Filter22_Conf<<Filter22)| (Filter21_Conf<<Filter21)| (Filter20_Conf<<Filter20)|
+					 (Filter19_Conf<<Filter19)| (Filter18_Conf<<Filter18)| (Filter17_Conf<<Filter17)|
+					 (Filter16_Conf<<Filter16)| (Filter15_Conf<<Filter15)| (Filter14_Conf<<Filter14)|
+					 (Filter13_Conf<<Filter13)| (Filter12_Conf<<Filter12)| (Filter11_Conf<<Filter11)|
+					 (Filter10_Conf<<Filter10)| (Filter9_Conf<<Filter9  )| (Filter8_Conf<<Filter8  )|
+					 (Filter7_Conf<<Filter7  )| (Filter6_Conf<<Filter6  )| (Filter5_Conf<<Filter5  )|
+					 (Filter4_Conf<<Filter4  )| (Filter3_Conf<<Filter3  )| (Filter2_Conf<<Filter2  )|
+					 (Filter1_Conf<<Filter1  )| (Filter0_Conf<<Filter0  ));
+	return Local_u32Value;  // Returning the control to the caller function
+}
+/********************************************************************************/
+/*Function: CAN_u32FiltersAssign   					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to Filters ssigned to FIFO 0 or 1        */
+/********************************************************************************/
+static u32 CAN_u32FiltersAssign(void)
+{
+	u32 Local_u32Value=0;   //Local Variable For Data Read
+	/*Assemble Filters Values*/
+	Local_u32Value =((Filter27_Assign<<Filter27)| (Filter26_Assign<<Filter26)| (Filter25_Assign<<Filter25)|
+					 (Filter24_Assign<<Filter24)| (Filter23_Assign<<Filter23)| (Filter23_Assign<<Filter23)|
+					 (Filter22_Assign<<Filter22)| (Filter21_Assign<<Filter21)| (Filter20_Assign<<Filter20)|
+					 (Filter19_Assign<<Filter19)| (Filter18_Assign<<Filter18)| (Filter17_Assign<<Filter17)|
+					 (Filter16_Assign<<Filter16)| (Filter15_Assign<<Filter15)| (Filter14_Assign<<Filter14)|
+					 (Filter13_Assign<<Filter13)| (Filter12_Assign<<Filter12)| (Filter11_Assign<<Filter11)|
+					 (Filter10_Assign<<Filter10)| (Filter9_Assign<<Filter9  )| (Filter8_Assign<<Filter8  )|
+					 (Filter7_Assign<<Filter7  )| (Filter6_Assign<<Filter6  )| (Filter5_Assign<<Filter5  )|
+					 (Filter4_Assign<<Filter4  )| (Filter3_Assign<<Filter3  )| (Filter2_Assign<<Filter2  )|
+					 (Filter1_Assign<<Filter1  )| (Filter0_Assign<<Filter0  ));
+	return Local_u32Value;  // Returning the control to the caller function
+}
+/********************************************************************************/
+/*Function: CAN_voidSetIDs							                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns nothing                       							    */
+/*Desc:This Function set the IDs For Each Filter in the CAN  		            */
+/********************************************************************************/
+static void CAN_voidSetIDs(void)
+{
+   #if (Filter0_Enable==Enable)
+   {
+	 CAN->Filter[Filter0].FR1=Filter0_ID1;  // Assign ID 1 For Filter 0
+	 CAN->Filter[Filter0].FR2=Filter0_ID2;  // Assign ID 2 For Filter 0
+   }
+   #endif
+   #if (Filter1_Enable==Enable)
+   {
+	 CAN->Filter[Filter1].FR1=Filter1_ID1;  // Assign ID 1 For Filter 1
+	 CAN->Filter[Filter1].FR2=Filter1_ID2;  // Assign ID 2 For Filter 1
+   }
+   #endif
+      #if (Filter2_Enable==Enable)
+   {
+	 CAN->Filter[Filter2].FR1=Filter2_ID1;  // Assign ID 1 For Filter 2
+	 CAN->Filter[Filter2].FR2=Filter2_ID2;  // Assign ID 2 For Filter 2
+   }
+   #endif
+      #if (Filter3_Enable==Enable)
+   {
+	 CAN->Filter[Filter3].FR1=Filter3_ID1;  // Assign ID 1 For Filter 3
+	 CAN->Filter[Filter3].FR2=Filter3_ID2;  // Assign ID 2 For Filter 3
+   }
+   #endif
+      #if (Filter4_Enable==Enable)
+   {
+	 CAN->Filter[Filter4].FR1=Filter4_ID1;  // Assign ID 1 For Filter 4
+	 CAN->Filter[Filter4].FR2=Filter4_ID2;  // Assign ID 2 For Filter 4
+   }
+   #endif
+      #if (Filter5_Enable==Enable)
+   {
+	 CAN->Filter[Filter5].FR1=Filter5_ID1;   // Assign ID 1 For Filter 5
+	 CAN->Filter[Filter5].FR2=Filter5_ID2;   // Assign ID 2 For Filter 5
+   }
+   #endif
+      #if (Filter6_Enable==Enable)
+   {
+	 CAN->Filter[Filter6].FR1=Filter6_ID1;   // Assign ID 1 For Filter 6
+	 CAN->Filter[Filter6].FR2=Filter6_ID2;   // Assign ID 2 For Filter 6
+   }
+   #endif
+      #if (Filter7_Enable==Enable)
+   {
+	 CAN->Filter[Filter7].FR1=Filter7_ID1;   // Assign ID 1 For Filter 7
+	 CAN->Filter[Filter7].FR2=Filter7_ID2;   // Assign ID 2 For Filter 7
+   }
+   #endif
+      #if (Filter8_Enable==Enable)
+   {
+	 CAN->Filter[Filter8].FR1=Filter8_ID1;   // Assign ID 1 For Filter 8
+	 CAN->Filter[Filter8].FR2=Filter8_ID2;   // Assign ID 2 For Filter 8
+   }
+   #endif
+      #if (Filter9_Enable==Enable)
+   {
+	 CAN->Filter[Filter9].FR1=Filter9_ID1;   // Assign ID 1 For Filter 9
+	 CAN->Filter[Filter9].FR2=Filter9_ID2;   // Assign ID 2 For Filter 9
+   }
+   #endif
+      #if (Filter10_Enable==Enable)
+   {
+	 CAN->Filter[Filter10].FR1=Filter10_ID1;  // Assign ID 1 For Filter 10
+	 CAN->Filter[Filter10].FR2=Filter10_ID2;  // Assign ID 2 For Filter 10
+   }
+   #endif
+      #if (Filter11_Enable==Enable)
+   {
+	 CAN->Filter[Filter11].FR1=Filter11_ID1;  // Assign ID 1 For Filter 11
+	 CAN->Filter[Filter11].FR2=Filter11_ID2;  // Assign ID 2 For Filter 11
+   }
+   #endif
+      #if (Filter12_Enable==Enable)
+   {
+	 CAN->Filter[Filter12].FR1=Filter12_ID1;  // Assign ID 1 For Filter 12
+	 CAN->Filter[Filter12].FR2=Filter12_ID2;  // Assign ID 2 For Filter 12
+   }
+   #endif
+      #if (Filter13_Enable==Enable)
+   {
+	 CAN->Filter[Filter13].FR1=Filter13_ID1;  // Assign ID 1 For Filter 13
+	 CAN->Filter[Filter13].FR2=Filter13_ID2;  // Assign ID 2 For Filter 13
+   }
+   #endif
+      #if (Filter14_Enable==Enable)
+   {
+	 CAN->Filter[Filter14].FR1=Filter14_ID1;  // Assign ID 1 For Filter 14
+	 CAN->Filter[Filter14].FR2=Filter14_ID2;  // Assign ID 2 For Filter 14
+   }
+   #endif
+      #if (Filter15_Enable==Enable)
+   {
+	 CAN->Filter[Filter15].FR1=Filter15_ID1;  // Assign ID 1 For Filter 15
+	 CAN->Filter[Filter15].FR2=Filter15_ID2;  // Assign ID 2 For Filter 15
+   }
+   #endif
+      #if (Filter16_Enable==Enable)
+   {
+	 CAN->Filter[Filter16].FR1=Filter16_ID1;  // Assign ID 1 For Filter 16
+	 CAN->Filter[Filter16].FR2=Filter16_ID2;  // Assign ID 2 For Filter 16
+   }
+   #endif
+      #if (Filter17_Enable==Enable)
+   {
+	 CAN->Filter[Filter17].FR1=Filter17_ID1; // Assign ID 1 For Filter 17
+	 CAN->Filter[Filter17].FR2=Filter17_ID2; // Assign ID 2 For Filter 17
+   }
+   #endif
+      #if (Filter18_Enable==Enable)
+   {
+	 CAN->Filter[Filter18].FR1=Filter18_ID1; // Assign ID 1 For Filter 18
+	 CAN->Filter[Filter18].FR2=Filter18_ID2; // Assign ID 2 For Filter 18
+   }
+   #endif
+      #if (Filter19_Enable==Enable)
+   {
+	 CAN->Filter[Filter19].FR1=Filter19_ID1;  // Assign ID 1 For Filter 19
+	 CAN->Filter[Filter19].FR2=Filter19_ID2;  // Assign ID 2 For Filter 19
+   }
+   #endif
+       #if (Filter20_Enable==Enable)
+   {
+	 CAN->Filter[Filter20].FR1=Filter20_ID1; // Assign ID 1 For Filter 20
+	 CAN->Filter[Filter20].FR2=Filter20_ID2; // Assign ID 2 For Filter 20
+   }
+   #endif
+       #if (Filter21_Enable==Enable)
+   {
+	 CAN->Filter[Filter21].FR1=Filter21_ID1;  // Assign ID 1 For Filter 21
+	 CAN->Filter[Filter21].FR2=Filter21_ID2;  // Assign ID 2 For Filter 21
+   }
+   #endif
+       #if (Filter22_Enable==Enable)
+   {
+	 CAN->Filter[Filter22].FR1=Filter22_ID1;  // Assign ID 1 For Filter 22
+	 CAN->Filter[Filter22].FR2=Filter22_ID2;  // Assign ID 2 For Filter 22
+   }
+   #endif
+       #if (Filter23_Enable==Enable)
+   {
+	 CAN->Filter[Filter23].FR1=Filter23_ID1;  // Assign ID 1 For Filter 23
+	 CAN->Filter[Filter23].FR2=Filter23_ID2;  // Assign ID 2 For Filter 23
+   }
+   #endif
+       #if (Filter24_Enable==Enable)
+   {
+	 CAN->Filter[Filter24].FR1=Filter24_ID1;   // Assign ID 1 For Filter 24
+	 CAN->Filter[Filter24].FR2=Filter24_ID2;   // Assign ID 2 For Filter 24
+   }
+   #endif
+       #if (Filter25_Enable==Enable)
+   {
+	 CAN->Filter[Filter25].FR1=Filter25_ID1;  // Assign ID 1 For Filter 25
+	 CAN->Filter[Filter25].FR2=Filter25_ID2;  // Assign ID 2 For Filter 25
+   }
+   #endif
+       #if (Filter26_Enable==Enable)
+   {
+	 CAN->Filter[Filter26].FR1=Filter26_ID1;  // Assign ID 1 For Filter 26
+	 CAN->Filter[Filter26].FR2=Filter26_ID2;  // Assign ID 2 For Filter 26
+   }
+   #endif
+       #if (Filter27_Enable==Enable)
+   {
+	 CAN->Filter[Filter27].FR1=Filter27_ID1;  // Assign ID 1 For Filter 27
+	 CAN->Filter[Filter27].FR2=Filter27_ID2;  // Assign ID 2 For Filter 27
+   }
+   #endif
+}
+
+

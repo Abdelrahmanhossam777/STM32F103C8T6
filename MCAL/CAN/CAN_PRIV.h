@@ -1,18 +1,43 @@
-/****************************************************/
-/*   AUTHOR      : Abdelrahman Hossam               */
-/*   Description : CAN DRIVER                       */
-/*   DATE        : 22 SEP 2020                      */
-/*   VERSION     : V01                              */
-/****************************************************/
-
+/****************************************************************************************
+* ! Title : CAN_program
+* ! File Name : CAN_program.c
+* ! Description : This file has the definition of the CAN functions and
+* the usage of the global variables.
+* ! Compiler : GNU ARM Cross Compiler
+* ! Target : STM32F103xxxx Micro-controller
+****************************************************************************************/
+/****************************************************************************************
+* LOG :
+* VERSION    AUTHOR              DATE              DESCRIPTION
+* v1.0       Abdelrahman Hossam  22 SEP,2020       - Initial creation
+* v2.0       Abdullah Mustafa    03 OCT,2020       - Adding the receive API
+* v3.0       Abdelrahman Hossam  11 JAN,2021	   - Add Filters Configurations
+****************************************************************************************/
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef _MCAL_CAN_PRIV_H
 #define _MCAL_CAN_PRIV_H
 
+/****************************************************************/
+/* CAN pointer to structure with Base Address of CAN Peripheral */
 #define CAN ((volatile CAN_t *) 0x40006400)
+/****************************************************************/
 
+/****************************************/
+/* Reset value for Registers            */
+#define Reset_Value 0X0000
+/****************************************/
 
+/****************************************/
+/* Time Out For Loops		            */
+#define TimeOut  5000
+/****************************************/
+
+/****************************************/
+/* enable and Disable Values for bits   */
+#define Enable  1
+#define Disable 0
+/****************************************/
 
 /****************************************/
 /* Definition of the Messages Format    */
@@ -56,8 +81,8 @@
 /********************************/
 /* Baudrate for the CAN */
 /********************************/
-//#define CAN_BaudRate 0x00050000
-#define CAN_BaudRate 	0x00060004
+#define CAN_BaudRate 0x00050000
+//#define CAN_BaudRate 	0x00060004
 /********************************/
 
 /*************************************************/
@@ -112,38 +137,88 @@
 #define CAN_MSR_INAK_Bit  0
 /*Sleep acknowledge*/
 #define CAN_MSR_SLAK_Bit  1
+/*Wakeup interrupt*/
+#define CAN_MSR_WKUI_Bit  3
+/*Transmit mode*/
+#define CAN_MSR_TXM_Bit  8
+/*Receive mode*/
+#define CAN_MSR_RXM_Bit  9
+/*CAN Rx signal*/
+#define CAN_MSR_RX_Bit  11
+
+
+/**********************************************/
+/* 				TSR BITS Mapping 			  */
+/**********************************************/
+/*Request completed mailbox 0*/
+#define CAN_TSR_RQCP0_Bit   0
+/*Transmission OK of mailbox 0*/
+#define CAN_TSR_TXOK0_Bit   1
+/*Arbitration lost for mailbox 0*/
+#define CAN_TSR_ALST0_Bit   2
+/*Transmission error of mailbox 0*/
+#define CAN_TSR_TERR0_Bit   3
+/*Abort request for mailbox 0*/
+#define CAN_TSR_ABRQ0_Bit   7
+/*Request completed mailbox 1*/
+#define CAN_TSR_RQCP1_Bit   8
+/*Transmission OK of mailbox 1*/
+#define CAN_TSR_TXOK1_Bit   9
+/*Arbitration lost for mailbox 1*/
+#define CAN_TSR_ALST1_Bit   10
+/*Transmission error of mailbox 1*/
+#define CAN_TSR_TERR1_Bit   11
+/*Abort request for mailbox 1*/
+#define CAN_TSR_ABRQ1_Bit   15
+/*Request completed mailbox 2*/
+#define CAN_TSR_RQCP2_Bit   16
+/*Transmission OK of mailbox 2*/
+#define CAN_TSR_TXOK2_Bit   17
+/*Arbitration lost for mailbox 2*/
+#define CAN_TSR_ALST2_Bit   18
+/*Transmission error of mailbox 2*/
+#define CAN_TSR_TERR2_Bit   19
+/*Abort request for mailbox 2*/
+#define CAN_TSR_ABRQ2_Bit   23
+/*Transmit mailbox 0 empty*/
+#define CAN_TSR_TME0_Bit    26
+/*Transmit mailbox 1 empty*/
+#define CAN_TSR_TME1_Bit    27
+/*Transmit mailbox 2 empty*/
+#define CAN_TSR_TME2_Bit    28
 
 /**********************************************/
 /* 				IER BITS Mapping 			  */
 /**********************************************/
-/* FIFO message pending interrupt enable */
+/* FIFO message pending interrupt enable      */
 #define CAN_IER_FMPIE0_Bit 1
-/* Transmit mailbox empty interrupt enable */
+/* Transmit mailbox empty interrupt enable    */
 #define CAN_IER_TMEIE_Bit  0
 /**********************************************/
 
 /**********************************************/
 /* 				TIR BITS Mapping 			  */
 /**********************************************/
-/* IDE: Identifier extension */
+/* IDE: Identifier extension 				  */
 #define CAN_TIR_IDE_Bit    2
-/* RTR: Remote transmission request */
+/* RTR: Remote transmission request 		  */
 #define CAN_TIR_RTR_Bit    1
-/* TXRQ: Transmit mailbox request */
+/* TXRQ: Transmit mailbox request 			  */
 #define CAN_TIR_TXRQ_Bit   0
-/* Extended ID Start Bit */
+/* Extended ID Start Bit 					  */
 #define CAN_TIR_Extended_StartBit   3
-/* Standard ID Start Bit */
+/* Standard ID Start Bit 					  */
 #define CAN_TIR_Standard_StartBit   21
 /*********************************************/
 
 /**********************************************/
 /* 				FIFO BITS Mapping 			  */
 /**********************************************/
-/*Identifier extension Bit*/
+/*Identifier extension Bit					  */
 #define CAN_RIR_RTR_Bit  1
-/*Remote transmission request Bit*/
+/*Remote transmission request Bit			  */
 #define CAN_RIR_IDE_Bit  1
+/**********************************************/
 
 /**********************************************/
 /* 				RF0R BITS Mapping 			  */
@@ -152,6 +227,31 @@
 #define CAN_RF0R_RFOM0  5
 #define CAN_RF0R_FMP00  0
 #define CAN_RF0R_FMP01  1
+
+/**********************************************/
+/* 				RF1R BITS Mapping 			  */
+/**********************************************/
+/* Release FIFO 0 output mailbox              */
+#define CAN_RF1R_RFOM1  5
+#define CAN_RF1R_FMP10  0
+#define CAN_RF1R_FMP11  1
+
+
+/**********************************************/
+
+/**********************************************/
+/* 				BTR BITS Mapping 			  */
+/**********************************************/
+#define CAN_BTR_LBKM_BIT    30
+#define CAN_BTR_SILM_BIT    31
+/**********************************************/
+
+/**********************************************/
+/* 				FMR BITS Mapping 			  */
+/**********************************************/
+#define CAN_FMR_FINIT_BIT   0
+/**********************************************/
+
 /***************************************************************************/
 /*				Tx MailBox Structure for register Description			   */
 /***************************************************************************/
@@ -166,6 +266,7 @@ typedef struct
   /* CAN mailbox data high register (CAN_THLxR) (x=0..2) */
   volatile u32 TDHR;
 } CAN_TxMailBox;
+/***************************************************************************/
 
 /***************************************************************************/
 /*			  FIFO MailBox Structure for register Description			   */
@@ -181,6 +282,7 @@ typedef struct
   /* CAN receive FIFO mailbox data high register (CAN_RDHxR) (x=0..1) */
   volatile u32 RDHR;
 } CAN_FIFOMailBox;
+/***************************************************************************/
 
 /***************************************************************************/
 /*			 Filter Registers Structure for register Description		   */
@@ -240,6 +342,149 @@ typedef struct {
     CAN_FilterRegister Filter[28];
 
 }CAN_t;
+/***************************************************************************/
+
+/*****************************/
+/* LIST and MASK Modes Setup */
+#define Mask_mode   0
+#define List_mode   1
+/*****************************/
+
+/*************************************/
+/* Filter Single(32) or Dual(2*16)   */
+#define Dual_scale_configuration   0
+#define Single_scale_configuration 1
+/*************************************/
+
+/*************************************/
+/* Filter Assign To FIFO0 or FIFO1   */
+#define Filter_FIFO0 0
+#define Filter_FIFO1 1
+/*************************************/
+
+/*************************************/
+/*			   Filters 				 */
+/*************************************/
+#define Filter0		0
+#define Filter1		1
+#define Filter2		2
+#define Filter3		3
+#define Filter4		4
+#define Filter5		5
+#define Filter6		6
+#define Filter7		7
+#define Filter8		8
+#define Filter9		9
+#define Filter10	10
+#define Filter11	11
+#define Filter12	12
+#define Filter13	13
+#define Filter14	14
+#define Filter15	15
+#define Filter16	16
+#define Filter17	17
+#define Filter18	18
+#define Filter19	19
+#define Filter20	20
+#define Filter21	21
+#define Filter22	22
+#define Filter23	23
+#define Filter24	24
+#define Filter25	25
+#define Filter26	26
+#define Filter27	27
+/*************************************/
+
+/********************************************************************************/
+/*								Private Functions								*/
+/********************************************************************************/
+
+/********************************************************************************/
+/*Function: CAN_voidFiltersInit						                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns nothing                       							    */
+/*Desc:This Function Initialize all the CAN Filters         		            */
+/********************************************************************************/
+static void CAN_voidFiltersInit(void);
+/********************************************************************************/
+
+/********************************************************************************/
+/*Function: CAN_u32FiltersEnable					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to the Enabled Filters  		            */
+/********************************************************************************/
+static u32 CAN_u32FiltersEnable(void);
+/********************************************************************************/
+
+/********************************************************************************/
+/*Function: CAN_u32FiltersMode     					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to Filters modes list or mask            */
+/********************************************************************************/
+static u32 CAN_u32FiltersMode(void);
+/********************************************************************************/
+
+/********************************************************************************/
+/*Function: CAN_u32FiltersMode     					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to Filters modes list or mask            */
+/********************************************************************************/
+static u32 CAN_u32FiltersConf(void);
+/********************************************************************************/
+
+/********************************************************************************/
+/*Function: CAN_u32FiltersAssign   					                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns u32 Variable                  							    */
+/*Desc:This Function returns the value to Filters ssigned to FIFO 0 or 1        */
+/********************************************************************************/
+static u32 CAN_u32FiltersAssign(void);
+/********************************************************************************/
+
+/********************************************************************************/
+/*Function: CAN_voidSetIDs							                           	*/
+/*I/P Parameters: void															*/
+/*Returns:it returns nothing                       							    */
+/*Desc:This Function set the IDs For Each Filter in the CAN  		            */
+/********************************************************************************/
+static void CAN_voidSetIDs(void);
+
+/********************************************************************************************/
+/*Function: CAN_voidSetup							                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function setup the CAN Registers	     					                     */
+/********************************************************************************************/
+static void CAN_voidSetup(void);
+
+/*********************************************************************************************/
+/*Function: CAN_voidMode							                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function setup the CAN Mode Test Mode or Not     			                     */
+/*********************************************************************************************/
+static void CAN_voidMode(void);
+
+/*********************************************************************************************/
+/*Function: CAN_voidInitializationMode				                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function allows CAN to Enter Initialization Mode   			                     */
+/*********************************************************************************************/
+static void CAN_voidInitializationMode(void);
+
+/*********************************************************************************************/
+/*Function: CAN_voidInitializationMode				                            			 */
+/*I/P Parameters: void																		 */
+/*Returns:it returns nothing	                            							     */
+/*Desc:This Function allows CAN to Enter Normal Mode		   			                     */
+/*********************************************************************************************/
+static void CAN_voidStart(void);
+/********************************************************************************/
+
 
 
 #endif
